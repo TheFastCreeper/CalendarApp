@@ -1,8 +1,985 @@
-<html>
-  <head>
-    <title>Hello World!</title>
-  </head>
-  <body>
-    Hello World!
-  </body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Web-Calendar</title>
+    <link type="text/css" rel="stylesheet" href="index.css">
+    <link rel="shortcut icon" type="image/x-icon" href="/calender.ico">
+
+</head>
+<body>
+<dialog id="dialog">
+</dialog>
+<h1>Calendar-Application (2523767)</h1>
+<hr>
+<div class="navigation">
+    <button id="createNewEvent">Create new event!</button>
+    |
+    <button id="showHelp">Show help menu</button>
+    |
+    <button id="showEventList">Show all events (list)</button>
+</div>
+<hr>
+<div id="topOfTable" class="monthYear">
+    <button id="prevMonth">Previous month</button>
+    <span id="monthYear" class="monthYear">
+
+    </span>
+    <button id="nextMonth">Next Month</button>
+</div>
+<table id="table" style="font-size : large">
+</table>
+
+<script>
+    window.onload = function () {
+        //Allow time for the request to get the events from the API
+        //Prevents the bug that on first load no events were shown
+        getEvents()
+        setTimeout(generateTable, 500)
+    }
+    let internalCounter = 1;
+    let events;
+    let homeURL = " http://dhbw.radicalsimplicity.com/calendar/"
+    const d = new Date()
+
+    let monthLength = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+    let monthName = ["Jänner", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"]
+
+    let currentDay = d.getDate()
+    let currentMonth = d.getMonth()
+    let currentYear = d.getFullYear()
+
+    const realDay = currentDay
+    const realMonth = currentMonth
+    const realYear = currentYear;
+
+    document.getElementById("monthYear").innerText = monthName[currentMonth] + " " + currentYear
+
+    window.addEventListener("keydown", event => {
+        switch (event.keyCode) {
+            case 39 :
+                currentMonth++
+                if (currentMonth > 11) {
+                    currentYear++
+                    currentMonth = 0
+                }
+                document.getElementById("monthYear").innerText = monthName[currentMonth] + " " + currentYear
+                generateTable()
+                break
+            case 37 :
+                currentMonth--
+                if (currentMonth < 0) {
+                    currentYear--
+                    currentMonth = 11
+                }
+                document.getElementById("monthYear").innerText = monthName[currentMonth] + " " + currentYear
+                generateTable()
+                break
+            case 13 :
+                closeDialog()
+                break
+
+        }
+    })
+
+    document.getElementById("createNewEvent").onclick = function () {
+        clearDialog()
+        createNewEvent()
+        showDialog()
+
+
+    }
+
+    document.getElementById("showHelp").onclick = function () {
+        clearDialog()
+        let dialog = document.getElementById("dialog")
+        createDivAndFillWithText("Keyboard shortcuts :")
+        createDivAndFillWithText(" ")
+        createDivAndFillWithText("<- = Prev. Month")
+        createDivAndFillWithText("-> = Next Month")
+        createDivAndFillWithText("↳ = Close Dialog Box")
+        createDivAndFillWithText("C = Create new event")
+        appendCloseButton()
+
+
+        showDialog()
+    }
+
+    document.getElementById("prevMonth").onclick = function () {
+        currentMonth--
+        if (currentMonth < 0) {
+            currentYear--
+            currentMonth = 11
+        }
+        document.getElementById("monthYear").innerText = monthName[currentMonth] + " " + currentYear
+        generateTable()
+    }
+    document.getElementById("nextMonth").onclick = function () {
+        currentMonth++
+        if (currentMonth > 11) {
+            currentYear++
+            currentMonth = 0
+        }
+        document.getElementById("monthYear").innerText = monthName[currentMonth] + " " + currentYear
+        generateTable()
+    }
+
+    document.getElementById("showEventList").onclick = function () {
+        clearDialog()
+        createDivAndFillWithText("All events :")
+        let wrapperDiv = document.createElement("div")
+        wrapperDiv.classList.add("wrapperDiv")
+        for (let i = 0; i < events.length; i++) {
+
+
+            let eventDiv = document.createElement("div")
+            eventDiv.classList.add("eventDiv")
+
+            let eventTitle = document.createTextNode(events[i].title.substring(0, 16))
+            eventDiv.appendChild(eventTitle)
+            wrapperDiv.appendChild(eventDiv)
+
+
+            eventDiv.addEventListener("click", event => {
+                clearDialog()
+                displayEvent(i)
+                appendCloseButton()
+                showDialog()
+
+            })
+        }
+        document.getElementById("dialog").appendChild(wrapperDiv)
+        appendCloseButton()
+        showDialog()
+    }
+
+
+    const getEvents = () => {
+        let request = new XMLHttpRequest()
+        let finalURL = homeURL + "2523767/events"
+        request.open("GET", finalURL)
+        request.send()
+        request.onreadystatechange = function () {
+            if (request.status === 200 && request.DONE) {
+                try {
+                    events = JSON.parse(request.responseText)
+                } catch (SyntaxError) {
+
+                }
+
+            }
+        }
+
+
+    }
+
+    const createNewEvent = () => {
+        clearDialog()
+        appendInputWithText("title", true, "text")
+        appendInputWithText("location", false, "text")
+        appendInputWithText("organizer", true, "text")
+        appendInputWithText("startDate", true, "date")
+        appendInputWithText("startTime", true, "time")
+        appendInputWithText("endDate", true, "date")
+        appendInputWithText("endTime", true, "time")
+        appendInputWithText("status", true, "status")
+        appendInputWithText("allday", true, "allday")
+        appendInputWithText("webpage", false, "text")
+        appendInputWithText("image", false, "file")
+        appendInputWithText("extra", false, "text")
+
+        //creates submit button with event handler to create actual event
+        let submitButton = document.createElement("button")
+        submitButton.id = "submitNewEvent"
+        submitButton.innerText = "Submit"
+
+        document.getElementById("dialog").appendChild(submitButton)
+        appendCloseButton()
+        document.getElementById("submitNewEvent").onclick = function () {
+            //getting the results of user input
+            let title = document.getElementById("title").value
+            let location = document.getElementById("location").value
+            let organizer = document.getElementById("organizer").value
+            let startTime = document.getElementById("startTime").value
+            let startDate = document.getElementById("startDate").value
+            let endTime = document.getElementById("endTime").value
+            let endDate = document.getElementById("endDate").value
+            let allday = document.getElementById("allday").value
+            let status = document.getElementById("status").value
+            let webpage = document.getElementById("webpage").value
+            let image = document.getElementById("image").files[0]
+            let extra = document.getElementById("extra").value
+
+            //validating user data
+            //validate image
+
+            let imageCheckPassed = true;
+
+
+            if (image !== undefined) {
+                if (image.size > 500000) {
+                    alert("Files cant be larger than 500kb!")
+                    imageCheckPassed = false
+
+                } else if (image.type !== "image/png" && image.type !== "image/jpeg") {
+                    alert("You can only upload images in the .png or the .jpg format!")
+                    imageCheckPassed = false;
+                }
+            }
+
+            //check rest of data
+            if (title.length > 50 || title.length < 1) {
+                alert("Need a title shorter than 50 characters!")
+
+            } else if (location.length > 50) {
+                alert("Location cant be longer than 50 characters!")
+            } else if (!validateEmail(organizer)) {
+                alert("Please enter a valid E-Mail Address!")
+            } else if (startTime.length < 1 || startDate.length < 1) {
+                alert("Please enter a valid starting time and date!")
+            } else if (endTime.length < 1 || endDate.length < 1) {
+                alert("Please enter a valid ending time and date!")
+            } else if (startTime > endTime || startDate > endDate) {
+                alert("Starting time and date must be before end time and date!")
+            } else if (webpage.length > 100) {
+                alert("Webpage-Link must be shorter than 100 characters!")
+            } else if (!imageCheckPassed) {
+                //stops execution of the final else if image check didn't pass
+            } else if (extra.length > 2000) {
+                alert("Cant enter more than 2000 characters into the extra field!")
+            } else {
+
+                closeDialog()
+                let startTimeDate = startDate + "T" + startTime
+                let endTimeDate = endDate + "T" + endTime
+                let alldayBool
+
+                if (allday === "Yes") {
+                    alldayBool = true;
+                    startTimeDate = startDate + "T00:00"
+                    endTimeDate = endDate + "T23:59"
+                } else {
+                    alldayBool = false;
+                }
+
+                let json = {
+                    "title": title,
+                    "location": location,
+                    "organizer": organizer,
+                    "start": startTimeDate,
+                    "end": endTimeDate,
+                    "allday": alldayBool,
+                    "status": status,
+                    "webpage": webpage,
+                    "extra": extra,
+                }
+
+                let request = new XMLHttpRequest()
+                request.open("POST", homeURL + "2523767/events")
+                request.setRequestHeader("Content-Type", "application/json;charset=UTF-8")
+                request.send(JSON.stringify(json))
+                request.onreadystatechange = function () {
+                    if (request.status === 200 && request.DONE) {
+                        //send image if it exists and passed all checks
+                        if (imageCheckPassed && image !== undefined) {
+                            try {
+                                let reader = new FileReader();
+                                reader.readAsDataURL(image);
+                                reader.onload = function () {
+                                    let newEvent = JSON.parse(request.responseText)
+                                    let urlToAddImage = homeURL + "2523767/images/" + newEvent.id
+                                    const imageJSON = {
+                                        "imagedata": reader.result,
+                                    }
+                                    let imageReq = new XMLHttpRequest()
+                                    imageReq.open("POST", urlToAddImage)
+                                    imageReq.setRequestHeader("Content-Type", "application/json;charset=UTF-8")
+                                    imageReq.send(JSON.stringify(imageJSON))
+                                    imageReq.onreadystatechange = function () {
+                                        if (imageReq.status === 204 && imageReq.DONE) {
+                                        }
+                                    }
+                                };
+                                reader.onerror = function (error) {
+                                    console.log('Error: ', error);
+                                };
+
+                            } catch (Exception) {
+                                console.log(Exception)
+                                //Catches unexpected end on line error
+                            } finally {
+                                setTimeout(reloadWindow, 250)
+                            }
+                        } else {
+                            setTimeout(reloadWindow, 250)
+                        }
+                    }
+                }
+            }
+
+
+        }
+
+
+    }
+
+    const generateTable = () => {
+        deleteOldTable()
+        getEvents()
+        internalCounter = 1
+        let table = document.getElementById("table")
+        for (let i = 0; i < 4; i++) {
+            let newRow = document.createElement("tr")
+            for (let j = 0; j < 7; j++) {
+                //creates new cell and new text node
+                let newCell = document.createElement("td")
+                let newText = document.createTextNode(JSON.stringify(internalCounter) + "." + JSON.stringify(currentMonth + 1))
+                if (currentYear < realYear) {
+                    newCell.classList.add("pastDays")
+                } else if (currentYear === realYear) {
+                    if (currentMonth < realMonth) {
+                        newCell.classList.add("pastDays")
+                    } else if (currentMonth === realMonth) {
+                        if (internalCounter < realDay) {
+                            newCell.classList.add("pastDays")
+                        }
+                    }
+                }
+                newCell.appendChild(newText)
+                newRow.appendChild(newCell)
+
+                if (events !== undefined) {
+                    try {
+                        for (let y = 0; y <= events.length; y++) {
+                            let dateOfEventUnix = Date.parse(events[y].start)
+                            let newDate = new Date(dateOfEventUnix)
+                            let dayOfEvent = newDate.getDate()
+                            let monthOfEvent = newDate.getMonth()
+                            let yearOfEvent = newDate.getFullYear()
+
+                            if (dayOfEvent === internalCounter) {
+                                if (monthOfEvent === currentMonth) {
+                                    if (yearOfEvent === currentYear) {
+                                        let eventDiv = document.createElement("div")
+                                        eventDiv.classList.add("eventDiv")
+
+                                        let eventTitle = document.createTextNode(events[y].title.substring(0, 16))
+                                        eventDiv.appendChild(eventTitle)
+                                        eventDiv.addEventListener("click", event => {
+                                            clearDialog()
+                                            displayEvent(y)
+                                            appendCloseButton()
+                                            showDialog()
+                                        })
+
+                                        newCell.appendChild(eventDiv)
+
+
+                                    }
+                                }
+                            }
+                        }
+                    } catch (TypeError) {
+
+                    }
+                }
+
+                //add event listener for clicking on a cell
+
+
+                internalCounter++;
+
+            }
+            table.appendChild(newRow)
+        }
+        if (internalCounter < monthLength[currentMonth]) {
+            let diffrence = monthLength[currentMonth] - internalCounter
+            let newRow = document.createElement("tr")
+            for (let u = 0; u < diffrence + 1; u++) {
+                //creates new cell and new text node
+                let newCell = document.createElement("td")
+                let newText = document.createTextNode(JSON.stringify(internalCounter) + "." + JSON.stringify(currentMonth + 1))
+
+                if (currentYear < realYear) {
+                    newCell.classList.add("pastDays")
+                } else if (currentYear === realYear) {
+                    if (currentMonth < realMonth) {
+                        newCell.classList.add("pastDays")
+                    } else if (currentMonth === realMonth) {
+                        if (internalCounter < realDay) {
+                            newCell.classList.add("pastDays")
+                        }
+                    }
+                }
+
+
+                //add event listener for clicking on a cell
+
+
+                newCell.appendChild(newText)
+                newRow.appendChild(newCell)
+
+
+                if (events !== undefined) {
+                    try {
+                        for (let y = 0; y <= events.length; y++) {
+
+                            let dateOfEventUnix = Date.parse(events[y].start)
+                            let newDate = new Date(dateOfEventUnix)
+                            let dayOfEvent = newDate.getDate()
+                            let monthOfEvent = newDate.getMonth()
+                            let yearOfEvent = newDate.getFullYear()
+
+
+                            if (dayOfEvent === internalCounter) {
+                                if (monthOfEvent === currentMonth) {
+                                    if (yearOfEvent === currentYear) {
+                                        let eventDiv = document.createElement("div")
+                                        eventDiv.classList.add("eventDiv")
+
+                                        let eventTitle = document.createTextNode(events[y].title.substring(0, 16))
+                                        eventDiv.appendChild(eventTitle)
+
+                                        eventDiv.addEventListener("click", event => {
+                                            clearDialog()
+                                            displayEvent(y)
+                                            showDialog()
+                                        })
+
+                                        newCell.appendChild(eventDiv)
+
+                                    }
+                                }
+                            }
+                        }
+                    } catch (TypeError) {
+
+                    }
+                }
+
+
+                internalCounter++;
+            }
+            table.appendChild(newRow)
+
+        }
+    }
+
+    const deleteOldTable = () => {
+        let table = document.getElementById("table")
+        let child = table.lastChild
+        while (child) {
+            table.removeChild(child)
+            child = table.lastChild
+        }
+    }
+
+    const showDialog = () => {
+        document.getElementById("dialog").style.display = "block"
+    }
+
+    const closeDialog = () => {
+        let dialogBox = document.getElementById("dialog")
+        dialogBox.style.display = "none"
+    }
+
+    const clearDialog = () => {
+        let dialog = document.getElementById("dialog")
+        let child = dialog.lastChild
+        while (child) {
+            dialog.removeChild(child)
+            child = dialog.lastChild
+        }
+
+    }
+
+    const createDivAndFillWithText = (text) => {
+        //creates a div, appends textnode with paramtext and returns the result
+        let newDiv = document.createElement("div")
+        let newDivText = document.createTextNode(text)
+        newDiv.appendChild(newDivText)
+        document.getElementById("dialog").appendChild(newDiv)
+    }
+
+    const createNewInput = (name, type) => {
+        let input = document.createElement("input")
+        input.id = name
+        input.type = type
+        return input
+
+    }
+
+    const appendCloseButton = () => {
+        let dialog = document.getElementById("dialog")
+        let newCloseButton = document.createElement("button")
+        newCloseButton.id = "closeDialog"
+        newCloseButton.classList.app = "closeButtonDialog"
+        newCloseButton.type = "button"
+        newCloseButton.innerHTML = "Close"
+        newCloseButton.name = "Close"
+        newCloseButton.addEventListener("click", event => {
+            closeDialog()
+        })
+        dialog.appendChild(newCloseButton)
+    }
+
+    const appendInputWithText = (type, mand, inputType) => {
+        let varName = capitalize(type)
+        let newDiv = document.createElement("div")
+        let text = document.createTextNode(varName + " : ")
+
+        if (mand) {
+            text.nodeValue = "*" + text.nodeValue
+        }
+        newDiv.appendChild(text)
+        let input;
+
+        if (inputType === "status") {
+            let array = ["Free", "Busy", "Tentative"];
+
+            let selectList = document.createElement("select");
+            selectList.id = "status";
+            newDiv.appendChild(selectList);
+
+            for (let i = 0; i < array.length; i++) {
+                let option = document.createElement("option");
+                option.value = array[i];
+                option.text = array[i];
+                selectList.appendChild(option);
+            }
+        } else if (inputType === "allday") {
+            let array = ["No", "Yes"];
+
+            let selectList = document.createElement("select");
+            selectList.id = "allday";
+            newDiv.appendChild(selectList);
+
+            for (let i = 0; i < array.length; i++) {
+                let option = document.createElement("option");
+                option.value = array[i];
+                option.text = array[i];
+                selectList.appendChild(option);
+            }
+        } else {
+            input = createNewInput(type, inputType);
+            newDiv.appendChild(input)
+        }
+
+        document.getElementById("dialog").appendChild(newDiv)
+    }
+    //Stolen from the internet lol
+    const capitalize = (s) => {
+        return s[0].toUpperCase() + s.slice(1);
+    }
+    //Stolen from the internet lol
+    const validateEmail = (emailAdress) => {
+        //matches regex
+        let regexEmail = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
+        if (emailAdress.match(regexEmail)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    const displayEvent = (i) => {
+        let eventID = events[i].id
+        let title = events[i].title
+        let location = events[i].location
+        let organizer = events[i].organizer
+        let start = events[i].start
+        let end = events[i].end
+        let status = events[i].status
+        let allday = events[i].allday
+        let webpage = events[i].webpage
+        let image = events[i].imageurl
+        let extra = events[i].extra
+
+        createDisplayDiv("title", title)
+        if (location !== undefined && location !== "" && location !== null) {
+            createDisplayDiv("location", location)
+        }
+        createDisplayDiv("organizer", organizer)
+
+        if (allday) {
+            createDisplayDiv("allday", "Yes")
+        } else {
+            createDisplayDiv("start", start)
+            createDisplayDiv("end", end)
+            createDisplayDiv("allday", "No")
+        }
+        createDisplayDiv("Status", status)
+        if (webpage !== undefined && webpage !== "" && webpage !== null) {
+            let newDiv = document.createElement("div")
+            let hyperlink = document.createElement("a")
+            hyperlink.target = "_blank"
+            let tempLink = webpage
+            if (!tempLink.includes("http")) {
+                tempLink = "http://www." + webpage
+            }
+            hyperlink.href = tempLink
+            hyperlink.innerText = webpage
+            newDiv.appendChild(hyperlink)
+            document.getElementById("dialog").appendChild(newDiv)
+
+        }
+        if (image !== null) {
+            let newDiv = document.createElement("div")
+            let imageFrame = document.createElement("img")
+            imageFrame.src = image
+            imageFrame.style.width = "200px"
+            imageFrame.style.height = "200px"
+            newDiv.appendChild(imageFrame)
+            document.getElementById("dialog").appendChild(newDiv)
+
+        }
+        if (extra !== undefined && extra !== "" && extra !== null) {
+            createDisplayDiv("extra", extra)
+        }
+        let editButton = document.createElement("button")
+        editButton.id = "editButton"
+        editButton.innerText = "Edit Calendar Entry"
+        document.getElementById("dialog").appendChild(editButton)
+        document.getElementById("editButton").onclick = function () {
+            clearDialog()
+            //calls special function that pre-populates the input fields with their current values
+            appendInputWithTextAndPrefilled("title", true, "text", i)
+            appendInputWithTextAndPrefilled("location", false, "text", i)
+            appendInputWithTextAndPrefilled("organizer", true, "text", i)
+            appendInputWithTextAndPrefilled("startDate", true, "date", i)
+            appendInputWithTextAndPrefilled("startTime", true, "time", i)
+            appendInputWithTextAndPrefilled("endDate", true, "date", i)
+            appendInputWithTextAndPrefilled("endTime", true, "time", i)
+            appendInputWithTextAndPrefilled("status", true, "status", i)
+            appendInputWithTextAndPrefilled("allday", true, "allday", i)
+            appendInputWithTextAndPrefilled("webpage", false, "text", i)
+            appendInputWithText("image", false, "file")
+            appendInputWithTextAndPrefilled("extra", false, "text", i)
+            document.getElementById("dialog").appendChild(document.createElement("br"))
+            createDivAndFillWithText("Notice : Uploaded image replaces old image!")
+            document.getElementById("dialog").appendChild(document.createElement("br"))
+            if (events[i].imageurl !== null) {
+                //displays image (if it exists) in edit view
+                let newDiv = document.createElement("div")
+                let imageFrame = document.createElement("img")
+                imageFrame.src = image
+                imageFrame.style.width = "200px"
+                imageFrame.style.height = "200px"
+                newDiv.appendChild(imageFrame)
+                document.getElementById("dialog").appendChild(newDiv)
+            }
+            //creates button and logic to PUT the changes to the API
+            let submitEdits = document.createElement("button")
+            submitEdits.id = "submitEdits"
+            submitEdits.innerText = "Submit Edits"
+            document.getElementById("dialog").appendChild(submitEdits)
+
+            if (events[i].imageurl !== null) {
+                let deleteImage = document.createElement("button")
+                deleteImage.id = "deleteImage"
+                deleteImage.innerText = "Delete image"
+                document.getElementById("dialog").appendChild(deleteImage)
+                document.getElementById("deleteImage").onclick = function () {
+                    if (events[i].imageurl !== null) {
+                        let deleteImageUrl = homeURL + "2523767/images/" + events[i].id
+                        let deleteImageRequest = new XMLHttpRequest()
+                        deleteImageRequest.open("DELETE", deleteImageUrl)
+                        deleteImageRequest.send()
+                        deleteImageRequest.onreadystatechange = function () {
+                            if (deleteImageRequest.status === 204 && deleteImageRequest.DONE) {
+                                reloadWindow()
+                            }
+                        }
+                    } else {
+                        //Catches cheeky users that try to delete images from event that dont have them :)
+                        alert("Event doesn't have image!")
+                    }
+                }
+            }
+            appendCloseButton()
+            document.getElementById("submitEdits").onclick = function () {
+
+                //getting the results of user input
+                let title = document.getElementById("title").value
+                let location = document.getElementById("location").value
+                let organizer = document.getElementById("organizer").value
+                let startTime = document.getElementById("startTime").value
+                let startDate = document.getElementById("startDate").value
+                let endTime = document.getElementById("endTime").value
+                let endDate = document.getElementById("endDate").value
+                let allday = document.getElementById("allday").value
+                let status = document.getElementById("status").value
+                let webpage = document.getElementById("webpage").value
+                let image = document.getElementById("image").files[0]
+                let extra = document.getElementById("extra").value
+
+                //validating user data
+                //validate image
+
+                let imageCheckPassed = true;
+
+
+                if (image !== undefined) {
+                    if (image.size > 500000) {
+                        alert("Files cant be larger than 500kb!")
+                        imageCheckPassed = false
+
+                    } else if (image.type !== "image/png" && image.type !== "image/jpeg") {
+                        alert("You can only upload images in the .png or the .jpg format!")
+                        imageCheckPassed = false;
+                    }
+                }
+
+                //check rest of data
+                if (title.length > 50 || title.length < 1) {
+                    alert("Need a title shorter than 50 characters!")
+
+                } else if (location.length > 50) {
+                    alert("Location cant be longer than 50 characters!")
+                } else if (!validateEmail(organizer)) {
+                    alert("Please enter a valid E-Mail Address!")
+                } else if (startTime.length < 1 || startDate.length < 1) {
+                    alert("Please enter a valid starting time and date!")
+                } else if (endTime.length < 1 || endDate.length < 1) {
+                    alert("Please enter a valid ending time and date!")
+                } else if (startTime > endTime || startDate > endDate) {
+                    alert("Starting time and date must be before end time and date!")
+                } else if (webpage.length > 100) {
+                    alert("Webpage-Link must be shorter than 100 characters!")
+                } else if (!imageCheckPassed) {
+                    //stops execution of the final else if image check didn't pass
+                } else if (extra.length > 2000) {
+                    alert("Cant enter more than 2000 characters into the extra field!")
+                } else {
+
+                    closeDialog()
+                    let startTimeDate = startDate + "T" + startTime
+                    let endTimeDate = endDate + "T" + endTime
+                    let alldayBool
+
+                    if (allday === "Yes") {
+                        alldayBool = true;
+                        startTimeDate = startDate + "T00:00"
+                        endTimeDate = endDate + "T23:59"
+                    } else {
+                        alldayBool = false;
+                    }
+
+                    let oldImage = events[i].imageurl
+
+                    let json = {
+                        "title": title,
+                        "location": location,
+                        "organizer": organizer,
+                        "start": startTimeDate,
+                        "end": endTimeDate,
+                        "allday": alldayBool,
+                        "status": status,
+                        "webpage": webpage,
+                        "imageurl": oldImage,
+                        "extra": extra,
+                    }
+
+                    let request = new XMLHttpRequest()
+                    request.open("PUT", homeURL + "2523767/events/" + events[i].id)
+                    request.setRequestHeader("Content-Type", "application/json;charset=UTF-8")
+                    request.send(JSON.stringify(json))
+                    request.onreadystatechange = function () {
+                        if (request.status === 200 && request.DONE) {
+                            //send image if it exists and passed all checks
+                            if (imageCheckPassed && image !== undefined) {
+                                //deletes old image if one exists already
+                                if (events[i].imageurl !== null) {
+                                    let deleteImageUrl = homeURL + "2523767/images/" + events[i].id
+                                    let deleteImageRequest = new XMLHttpRequest()
+                                    deleteImageRequest.open("DELETE", deleteImageUrl)
+                                    deleteImageRequest.send()
+                                    deleteImageRequest.onreadystatechange = function () {
+                                        if (deleteImageRequest.status === 204 && deleteImageRequest.DONE) {
+                                            reloadWindow()
+                                        }
+                                    }
+                                }
+
+                            }
+                            try {
+                                let reader = new FileReader();
+                                reader.readAsDataURL(image);
+                                reader.onload = function () {
+                                    let newEvent = JSON.parse(request.responseText)
+                                    let urlToAddImage = homeURL + "2523767/images/" + newEvent.id
+                                    const imageJSON = {
+                                        "imagedata": reader.result,
+                                    }
+                                    let imageReq = new XMLHttpRequest()
+                                    imageReq.open("POST", urlToAddImage)
+                                    imageReq.setRequestHeader("Content-Type", "application/json;charset=UTF-8")
+                                    imageReq.send(JSON.stringify(imageJSON))
+                                    imageReq.onreadystatechange = function () {
+                                        if (imageReq.status === 204 && imageReq.DONE) {
+                                        }
+                                    }
+                                };
+                                reader.onerror = function (error) {
+                                    console.log('Error: ', error);
+                                };
+
+                            } catch (Exception) {
+                                console.log(Exception)
+                                //Catches unexpected end on line error
+                            } finally {
+                                setTimeout(reloadWindow, 250)
+                            }
+                        } else {
+                            setTimeout(reloadWindow, 250)
+                        }
+                    }
+                }
+            }
+        }
+        //creates button and logic to directly delete images from an event
+        if (events[i].imageurl !== null) {
+            let deleteImage = document.createElement("button")
+            deleteImage.id = "deleteImage"
+            deleteImage.innerText = "Delete image"
+            document.getElementById("dialog").appendChild(deleteImage)
+            document.getElementById("deleteImage").onclick = function () {
+                if (events[i].imageurl !== null) {
+                    let deleteImageUrl = homeURL + "2523767/images/" + events[i].id
+                    let deleteImageRequest = new XMLHttpRequest()
+                    deleteImageRequest.open("DELETE", deleteImageUrl)
+                    deleteImageRequest.send()
+                    deleteImageRequest.onreadystatechange = function () {
+                        if (deleteImageRequest.status === 204 && deleteImageRequest.DONE) {
+                            reloadWindow()
+                        }
+                    }
+                } else {
+                    //Catches cheeky users that try to delete images from event that dont have them :)
+                    alert("Event doesn't have image!")
+                }
+            }
+        }
+        showDialog()
+
+
+    }
+
+    let deleteButton = document.createElement("button")
+    deleteButton.id = "deleteButton"
+    deleteButton.innerText = "Delete Calendar Entry"
+    document.getElementById("dialog").appendChild(deleteButton)
+    document.getElementById("deleteButton").onclick = function () {
+        let finalUrl = homeURL + "2523767/events/" + eventID
+        let request = new XMLHttpRequest()
+        request.open("DELETE", finalUrl)
+        request.send()
+        request.onreadystatechange = function () {
+            if (request.status === 204 && request.DONE) {
+                closeDialog()
+                window.location.reload()
+            }
+        }
+
+
+    }
+    const createDisplayDiv = (text, text2) => {
+        let varName = capitalize(text);
+        if (text2.length > 20) {
+            let text3 = text2.split(20)
+        }
+        let newDiv = document.createElement("div")
+        let newText = document.createTextNode(varName + " : " + text2)
+        newDiv.appendChild(newText)
+        document.getElementById("dialog").appendChild(newDiv)
+    }
+    const reloadWindow = () => {
+        window.location.reload()
+    }
+
+    const appendInputWithTextAndPrefilled = (type, mand, inputType, z) => {
+        let varName = capitalize(type)
+        let newDiv = document.createElement("div")
+        let text = document.createTextNode(varName + " : ")
+
+        if (mand) {
+            text.nodeValue = "*" + text.nodeValue
+        }
+        newDiv.appendChild(text)
+        let input;
+
+        if (inputType === "status") {
+            let array = ["Free", "Busy", "Tentative"];
+
+            let selectList = document.createElement("select");
+            selectList.id = "status";
+            newDiv.appendChild(selectList);
+
+            for (let i = 0; i < array.length; i++) {
+                let option = document.createElement("option");
+                option.value = array[i];
+                option.text = array[i];
+                selectList.appendChild(option);
+            }
+            selectList.value = eval("events[z]." + type)
+        } else if (inputType === "allday") {
+            let array = ["No", "Yes"];
+
+            let selectList = document.createElement("select");
+            selectList.id = "allday";
+            newDiv.appendChild(selectList);
+
+            for (let i = 0; i < array.length; i++) {
+                let option = document.createElement("option");
+                option.value = array[i];
+                option.text = array[i];
+                selectList.appendChild(option);
+            }
+            if (eval("events[z]." + type) === true) {
+                selectList.value = "Yes"
+            } else {
+                selectList.value = "No"
+            }
+        } else if (inputType === "text") {
+            input = createNewInput(type, inputType);
+            input.value = eval("events[z]." + type)
+            newDiv.appendChild(input)
+        } else if (inputType === "date") {
+            let tempType
+            if (type === "startDate") {
+                tempType = "start"
+            }
+            if (type === "endDate") {
+                tempType = "end"
+            }
+            let dateTime = eval("events[z]." + tempType)
+            let date = dateTime.split("T")
+            input = createNewInput(type, inputType);
+            input.value = date[0]
+            newDiv.appendChild(input)
+
+        } else if (inputType === "time") {
+            let tempType
+            if (type === "startTime") {
+                tempType = "start"
+            }
+            if (type === "endTime") {
+                tempType = "end"
+            }
+            let dateTime = eval("events[z]." + tempType)
+            let date = dateTime.split("T")
+            input = createNewInput(type, inputType);
+            input.value = date[1]
+            newDiv.appendChild(input)
+        } else {
+            input = createNewInput(type, inputType);
+            newDiv.appendChild(input)
+        }
+
+        document.getElementById("dialog").appendChild(newDiv)
+    }
+
+
+</script>
+</body>
 </html>

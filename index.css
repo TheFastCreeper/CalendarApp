@@ -1,0 +1,106 @@
+body {
+    background-color: slategrey;
+    color : white;
+    font-family: Bahnschrift, sans-serif;
+    font-size: x-large;
+    height: 2000px;
+}
+h1 {
+    align-self: center;
+}
+table {
+    width: available;
+    height: available; margin-left: auto;
+    margin-right: auto;
+
+}
+td {
+    width: 150px;
+    height: 150px;
+    min-width: 150px;
+    max-width: 150px;
+    min-height: 150px;
+    max-height: 150px;
+    background-color: white;
+    color : slategrey;
+    border-radius: 5px;
+    font-size: xxx-large;
+    margin-left: auto;
+    margin-right: auto;
+
+    padding : 0; /* 1:1 Aspect Ratio */
+    position: relative; /* If you want text inside of it */
+}
+.pastDays {
+    background-color: darkslategray;
+    color : white;
+
+
+}
+
+hr {
+    color: white;
+}
+.eventDiv {
+    width : available;
+    height : 20px;
+    background-color: green;
+    color : lawngreen;
+    font-size: 15px;
+    text-align: center;
+    margin : 10px;
+    text-overflow: ellipsis;
+    max-width: 130px;
+
+
+}
+.monthYear {
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+    font-size: xxx-large;
+
+}
+dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    right : 50%;
+    bottom: 50%;
+    margin-left: -100px;
+    margin-top: -250px;
+    margin-bottom: 200px;
+    width: 400px;
+    height: 400px;
+    z-index: 10000000000;
+    border : 5px solid slategrey;
+    background-color: lightgray;
+    border-radius: 5px;
+    overflow-y: scroll;
+}
+span {
+    display: inline-block;
+    width: 400px;
+}
+
+.closeButtonDialog {
+    position: static;
+    bottom : 0;
+
+}
+
+.navigation {
+   align-content: center;
+    justify-content: center;
+    margin: auto;
+}
+
+.wrapperDiv {
+    overflow-y: scroll;
+    height: 300px;
+}
+
+.scroll {
+    overflow-y: scroll;
+    width: 400px;
+}
